@@ -6,16 +6,14 @@ require 'byebug'
 
 class SQLObject
   def self.columns
-    return @colums if @columns
-    # table_name = @table_name
+    return @columns if @columns
     arr = DBConnection.execute2(<<-SQL)
       SELECT
         *
       FROM
         #{self.table_name}
     SQL
-    # debugger
-    @columns = arr[0].map!(&:to_sym)
+    @columns = arr[0].map(&:to_sym)
   end
 
   def attributes
@@ -24,24 +22,17 @@ class SQLObject
 
   def self.finalize!
     columns.each do |attribute|
-      # attribute = attribute.to_s
-
-      #define getter method
+      # getter
       define_method(attribute) do
-        # instance_variable_get("@#{attribute}")
-
         self.attributes[attribute]
       end
 
-      #define setter method
+      # setter
       define_method("#{attribute}=") do |val|
-        # instance_variable_set("@#{attribute}", val)
-        # debugger
         self.attributes[attribute] = val
       end
+
     end
-
-
   end
 
   def self.table_name=(table_name)
@@ -53,19 +44,40 @@ class SQLObject
   end
 
   def self.all
-    # ...
+    sql_arr = DBConnection.execute(<<-SQL)
+      SELECT
+        *
+      FROM
+        #{self.table_name}
+    SQL
+    self.parse_all(sql_arr)
   end
 
   def self.parse_all(results)
-    # ...
+    results.map do |sql_obj|
+      self.new(sql_obj)
+    end
   end
 
   def self.find(id)
-    # ...
+    sql_obj = DBConnection.execute(<<-SQL)
+      SELECT
+        *
+      FROM
+        #{self.table_name}
+      WHERE
+        id = #{id}
+      SQL
+    self.new(sql_obj)
   end
 
   def initialize(params = {})
-    # ...
+    params.each do |attr_name, attr_value|
+      attr_name = attr_name.to_sym
+      raise "unknown attribute '#{attr_name}'" unless self.class.columns.include?(attr_name)
+      self.send(attr_name)
+      self.send("#{attr_name.to_s}=", attr_value)
+    end
   end
 
 
